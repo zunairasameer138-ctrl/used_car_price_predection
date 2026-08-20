@@ -1,0 +1,17 @@
+# Core requirements for Used Car Price Analytics, Prediction & What-If
+# Simulation System. Versions shown are the exact ones this project was
+# built and tested against (see README.md -> "Verify the installation").
+# `pip install -r requirements.txt` will install these or newer compatible
+# releases.
+
+numpy>=2.5.2
+pandas>=3.0.5
+matplotlib>=3.11.1
+scikit-learn>=1.9.0
+scipy>=1.18.0          # transitive dependency of scikit-learn, pinned explicitly for reproducibility
+streamlit>=1.61.1
+joblib>=1.5.3
+openpyxl>=3.1.5         # Excel (.xlsx) read/write support in data_loader.py
+xgboost>=3.4.0          # third regression model benchmarked in train_model.py
+plotly>=6.9.0           # interactive charts in app/app.py
+pytest>=9.1.1           # test suite in tests/

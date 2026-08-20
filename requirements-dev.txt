@@ -1,0 +1,10 @@
+# Optional - only needed if you want to re-run/edit the notebooks in
+# notebooks/. Not required to train the model, run the dashboard, or run
+# the test suite; those only need requirements.txt.
+#
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
+
+nbformat>=5.11.0
+nbconvert>=7.17.1
+ipykernel>=7.3.0
+jupyter_client>=8.9.1
