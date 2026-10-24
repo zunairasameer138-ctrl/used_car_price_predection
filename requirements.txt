@@ -15,3 +15,4 @@ openpyxl>=3.1.5         # Excel (.xlsx) read/write support in data_loader.py
 xgboost>=3.4.0          # third regression model benchmarked in train_model.py
 plotly>=6.9.0           # interactive charts in app/app.py
 pytest>=9.1.1           # test suite in tests/
+requests>=2.32.0

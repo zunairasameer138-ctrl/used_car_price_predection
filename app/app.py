@@ -31,6 +31,8 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pandas as pd
@@ -63,7 +65,7 @@ st.set_page_config(
 )
 
 PAGES = ["Dashboard", "Market Analytics", "Price Prediction", "What-If Simulator",
-         "Model Performance", "About"]
+         "AI Buying Advisor", "Model Performance", "About"]
 
 PRIMARY_COLOR = "#2563eb"
 ACCENT_COLOR = "#f97316"
@@ -562,7 +564,76 @@ def page_whatif_simulator(df: pd.DataFrame | None) -> None:
 
 
 # -----------------------------------------------------------------------
-# Page 5 - Model Performance
+# Page 5 - Open-weight AI Buying Advisor
+# -----------------------------------------------------------------------
+def page_ai_buying_advisor(df: pd.DataFrame | None) -> None:
+    """Use a locally hosted open-weight Ollama model to explain a real ML estimate."""
+    st.title("Open-Weight AI Buying Advisor")
+    st.caption("A local AI assistant that explains the project's ML price estimate and helps buyers ask better questions.")
+    st.info("This feature uses an Ollama model running on your computer. Your car details are sent to that local service, not to a hosted AI API.")
+
+    try:
+        pipeline = load_pipeline_cached()
+    except PredictionError:
+        missing_pipeline_notice()
+        return
+
+    brand_options = sorted(df["brand"].dropna().unique()) if df is not None else ["Maruti", "Hyundai", "Honda", "Toyota"]
+    fuel_options = sorted(df["fuel"].dropna().unique()) if df is not None else ["Petrol", "Diesel", "CNG", "LPG", "Electric"]
+    seller_options = sorted(df["seller_type"].dropna().unique()) if df is not None else ["Individual", "Dealer", "Trustmark Dealer"]
+    transmission_options = sorted(df["transmission"].dropna().unique()) if df is not None else ["Manual", "Automatic"]
+    owner_options = df["owner"].value_counts().index.tolist() if df is not None else ["First Owner", "Second Owner", "Third Owner", "Fourth & Above Owner", "Test Drive Car"]
+
+    with st.form("ai_advisor_form"):
+        c1, c2, c3 = st.columns(3)
+        brand = c1.selectbox("Car brand", brand_options, key="ai_brand")
+        year = c2.slider("Manufacturing year", DATASET_MIN_YEAR, DATASET_MAX_YEAR, 2017, key="ai_year")
+        km_driven = c3.number_input("Kilometers driven", min_value=0, max_value=1_000_000, value=50000, step=1000, key="ai_km")
+        c4, c5, c6 = st.columns(3)
+        fuel = c4.selectbox("Fuel", fuel_options, key="ai_fuel")
+        transmission = c5.selectbox("Transmission", transmission_options, key="ai_transmission")
+        seller_type = c6.selectbox("Seller type", seller_options, key="ai_seller")
+        owner = st.selectbox("Ownership", owner_options, key="ai_owner")
+        ollama_model = st.text_input("Installed Ollama model", value="qwen2.5:3b", help="Use a model already pulled in Ollama, e.g. qwen2.5:3b or llama3.2:3b.")
+        question = st.text_area("What would you like to know?", value="Explain this estimate, identify possible risks, and give me a practical used-car inspection checklist.")
+        submitted = st.form_submit_button("Generate AI buying advice", type="primary", width="stretch")
+
+    if submitted:
+        try:
+            estimated_price = predict_price(pipeline, brand=brand, year=year, km_driven=km_driven,
+                                            fuel=fuel, seller_type=seller_type,
+                                            transmission=transmission, owner=owner)
+            car = {"brand": brand, "manufacturing_year": year, "kilometers_driven": km_driven,
+                   "fuel": fuel, "transmission": transmission, "seller_type": seller_type,
+                   "ownership": owner, "ML_estimated_price_INR": round(estimated_price)}
+            prompt = f"""You are a cautious used-car buying assistant. Explain the supplied machine-learning estimate without pretending it is a guaranteed market value. Do not invent vehicle history, inspection findings, market data, or exact repair costs. Separate known input facts from things that must be verified. Mention that the dataset is historical Indian CarDekho listings from 1992-2020. Give: (1) plain-language interpretation of the estimate, (2) relevant risks based only on the provided attributes, (3) 6 practical inspection/questions, (4) factors not represented in this model, and (5) a short disclaimer. User question: {question}\nVehicle and actual model output: {json.dumps(car, ensure_ascii=False)}"""
+            payload = json.dumps({"model": ollama_model.strip(), "prompt": prompt, "stream": False}).encode("utf-8")
+            request = urllib.request.Request("http://localhost:11434/api/generate", data=payload,
+                                             headers={"Content-Type": "application/json"}, method="POST")
+            with st.spinner("Asking your local open-weight model..."):
+                with urllib.request.urlopen(request, timeout=120) as response:
+                    result = json.loads(response.read().decode("utf-8"))
+            answer = result.get("response", "").strip()
+            st.subheader("Model estimate")
+            st.metric("Estimated price (INR)", format_inr(estimated_price))
+            if answer:
+                st.subheader("AI buying advice")
+                st.markdown(answer)
+                st.caption(f"Generated locally with Ollama model: {ollama_model.strip()}. AI advice may be inaccurate; verify all claims independently.")
+            else:
+                st.error("The local model returned an empty response. Check the model name in Ollama and try again.")
+        except urllib.error.URLError:
+            st.error("Ollama could not be reached. Install Ollama, start it, then run `ollama pull qwen2.5:3b` and retry. The price-prediction dashboard still works without this optional feature.")
+        except TimeoutError:
+            st.error("The local model took too long to respond. Try a smaller installed model, such as `qwen2.5:3b`.")
+        except PredictionError as exc:
+            st.error(f"Could not calculate the estimate: {exc}")
+        except Exception as exc:
+            st.error(f"AI advisor error: {exc}. Check that Ollama is running and the selected model is installed.")
+
+
+# -----------------------------------------------------------------------
+# Page 6 - Model Performance
 # -----------------------------------------------------------------------
 def page_model_performance() -> None:
     st.title("Model Performance")
@@ -722,6 +793,8 @@ def main() -> None:
         page_price_prediction(df)
     elif page == "What-If Simulator":
         page_whatif_simulator(df)
+    elif page == "AI Buying Advisor":
+        page_ai_buying_advisor(df)
     elif page == "Model Performance":
         page_model_performance()
     elif page == "About":
