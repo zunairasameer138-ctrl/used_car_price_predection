@@ -526,3 +526,24 @@ Built with Python, Scikit-learn and Streamlit.
 See `LICENSE`. The code in this repository is provided under the MIT
 License (see file for full text); the dataset itself is third-party data
 governed by its own license on Kaggle.
+## Local AI Buying Advisor
+
+This project includes a local AI-powered Used Car Buying Advisor using **Ollama** and the open-weight **Qwen 2.5 3B** model.
+
+### Features
+- Explains the machine-learning used-car price estimate in plain language.
+- Provides cautious buying considerations based on the vehicle details.
+- Suggests practical inspection questions for used-car buyers.
+- Runs locally through Ollama instead of requiring a paid cloud AI API.
+
+### Setup
+1. Install Ollama from https://ollama.com/
+2. Download the model:
+
+   ```bash
+   ollama pull qwen2.5:3b
+   
+   3. Install the project dependencies:
+
+   ```bash
+   pip install -r requirements.txt
